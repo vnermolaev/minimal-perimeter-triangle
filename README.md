@@ -4,7 +4,7 @@ An implementation of the algorithm given in the [paper](http://link.springer.com
 This is an improved implementation as compared to the one described
 [here](http://web.cs.dal.ca/~cccg/papers/26.pdf). The main difference is that
 the former implementation fails whenever a polygon contains a vertical edge,
-this --- doesn't.
+this is robust w.r.t. the vertucal edges.
 
 ### Building
 

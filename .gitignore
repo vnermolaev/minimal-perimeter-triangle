@@ -1,0 +1,14 @@
+bower_components
+.tscache
+build
+node_modules
+spec/**/*.js
+spec/**/*.map
+src/**/*.js
+src/**/*.map
+*~
+\#*\#
+**/tscommand*.txt
+test/
+web/
+dist/
