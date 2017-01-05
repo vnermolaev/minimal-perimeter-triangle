@@ -1,6 +1,0 @@
-{
-  "name": "minimal-perimeter-triangle",
-  "dependencies": {
-    "requirejs": "~2.1.22"
-  }
-}

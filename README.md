@@ -11,7 +11,6 @@ this is robust w.r.t. the vertucal edges.
 This produces directory `web`:
 
 	npm install
-	bower install
 	grunt
 
 An example is contained in `web/demo/showcase.html`.

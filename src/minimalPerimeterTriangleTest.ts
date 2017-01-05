@@ -1,14 +1,38 @@
-import { minimalPerimeterTriangle } from './minimalPerimeterTriangle';
-import test from './ava';
+import test from 'ava';
 
-test("constructs min perimeter triangle for 3 points (vertices of equilateral triangle)", t=> {
-    let a: number = 1;
-    // equilateral triangle
-    let points: {x: number, y: number}[] = [ {x: 0, y: 0}, {x: a, y: 0}, {x: a/2, y: a/2*Math.sqrt(3)} ] ;
+import { Vec2, Line, Side } from './Geometry';
+import { lineTangentToHull, minTriangleWithBase } from './MinimalPerimeterTriangle';
 
-    let triangle = minimalPerimeterTriangle(points);
+test("verifies that a line is tangent to a convex hull", t => {
+    const points = [
+        new Vec2(1, 3), new Vec2(2, 2), new Vec2(3, 1), new Vec2(3, 0),
+        new Vec2(3, -1), new Vec2(2, -2), new Vec2(1, -3)];
+    const line = new Line(new Vec2(3, 3), new Vec2(3, -3));
 
-    t.ok( (triangle.A.x - 0)**2 + (triangle.A.y - 0)**2 < 0.0001 );
-    t.ok( (triangle.B.x - a)**2 + (triangle.B.y - 0)**2 < 0.0001 );
-    t.ok( (triangle.C.x - a/2)**2 + (triangle.C.y - a/2*Math.sqrt(3))**2 < 0.0001 );
+    t.true(lineTangentToHull(line, points, 10 ** -5).holds);
+});
+
+test("verifies that a line is not tangent to a convex hull", t => {
+    const points = [
+        new Vec2(1, 3), new Vec2(2, 2), new Vec2(3, 1), new Vec2(3, 0),
+        new Vec2(3, -1), new Vec2(2, -2), new Vec2(1, -3)];
+    const line = new Line(new Vec2(3, 3), new Vec2(2, -3));
+
+    t.false(lineTangentToHull(line, points, 10 ** -5).holds);
+});
+
+test("compute minimal perimeter triangle condinitoned on the base", t => {
+    const points = [
+        new Vec2(-2, 0), new Vec2(-2, 1), new Vec2(-1, 2), new Vec2(0, 2.5),
+        new Vec2(1, 2), new Vec2(2, 1), new Vec2(2, 0)];
+    const {A, B, C} = minTriangleWithBase(points, 10 ** -7)!;
+
+    t.true(Math.abs(0 - A.x) < 0.2);
+    t.true(Math.abs(3 - A.y) < 0.2);
+
+    t.true(Math.abs(-3 - B.x) < 0.1);
+    t.true(Math.abs(0 - B.y) < 0.1);
+
+    t.true(Math.abs(3 - C.x) < 0.11);
+    t.true(Math.abs(0 - C.y) < 0.1);
 });

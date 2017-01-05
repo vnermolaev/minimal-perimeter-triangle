@@ -6,7 +6,7 @@ export class Vec2 {
     private _norm: number;
     private _normalized: Vec2;
 
-    constructor (x: number, y: number) {
+    constructor(x: number, y: number) {
         this._x = x;
         this._y = y;
     }
@@ -55,11 +55,18 @@ export class Vec2 {
         return this._x * that._y - this._y * that._x;
     }
 
-    equals(that: Vec2): boolean {
-        return this._x === that._x && this._y === that.y;
+    equals(that: Vec2, err: number): boolean {
+        if(err === 0) {
+            return this.x === that.x && this.y === that.y;
+        }
+        return this.minus(that).normSquared < err * err;
     }
 
     normal(): Vec2 {
         return new Vec2(this._y, -this._x);
+    }
+
+    toString(): string {
+        return `(${this.x}, ${this.y})`;
     }
 }

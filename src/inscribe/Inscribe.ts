@@ -1,327 +1,444 @@
-import {Vec2} from '../geometry/Vec2';
-import {Line} from '../geometry/Line';
-
-// arms of a wedge have directions
-// if wedge is degenerate, i.e., its arms a re parallel,
-// they need to point in the same direction
-export interface Wedge {
-    left_arm: Line;
-    right_arm: Line;
-}
+import { Vec2, Side, Line } from '../Geometry';
 
 export interface Circle {
     centre: Vec2;
     r: number;
 }
 
-export function formTriangle(w: Wedge, l: Line): boolean {
-    let d_right: Vec2 = w.right_arm.delta,
-        d_left: Vec2 = w.left_arm.delta,
-        d_line: Vec2 = l.delta;
+/**
+ * Class describing a wedge.
+ * Wedge can be degenerate, i.e., its arms are parallel,
+ * in this case they must point in the same direction
+ */
+export class Wedge {
+    readonly left_arm: Line;
+    readonly right_arm: Line;
+    readonly isDegenerate: boolean;
 
-    return Math.abs( d_right.cross(d_left) )>1/10 &&
-           Math.abs( d_right.cross(d_line) )>1/10 &&
-           Math.abs(  d_left.cross(d_line) )>1/10;
-}
-
-export function formDegenTriangle(w: Wedge, l: Line): boolean {
-    let d_right: Vec2 = w.right_arm.delta,
-        d_left: Vec2 = w.left_arm.delta,
-        d_line: Vec2 = l.delta;
-
-    return Math.abs( d_right.cross(d_line) )>1/10 &&
-           Math.abs(  d_left.cross(d_line) )>1/10;
-}
-
-export function pointWithinWedge(w: Wedge, p: Vec2): boolean {
-    // if arms of the wedge intersect, point is always within a wedge
-    if ( w.right_arm.intersectionPoint(w.left_arm)!==null ) { return true; }
-    // if parallel, check whether point is in between these lines
-    let right: Line = w.right_arm,
-        left: Line = w.left_arm;
-    // by default arms MUST point in the same direction,
-    // thus we can apply pointOnSide function
-    let p_left: number = left.pointOnSide(p),
-        p_right: number = right.pointOnSide(p);
-    return p_left!==p_right && p_left!==0 && p_right!==0;
-}
-
-export function DegenWedgeLine(w: Wedge, l: Line): {circle: Circle, tangentParameter: number}[] {
-    if ( !formDegenTriangle(w, l) ) {
-        // edge is parallel to one of the arms
-        return null;
+    private constructor(left_arm: Line, right_arm: Line, isDegenerate: boolean = false) {
+        this.left_arm = left_arm;
+        this.right_arm = right_arm;
+        this.isDegenerate = isDegenerate;
     }
 
-    let A: Vec2 = l.intersectionPoint(w.right_arm),
-        B: Vec2 = l.intersectionPoint(w.left_arm);
+    static new(left_arm: Line, right_arm: Line, err: number): Wedge | null {
+        if(left_arm === null || right_arm === null) {
+            return null;
+        }
 
-    let AB: Line = new Line(A, B);
+        if(err !== 0 && left_arm.overlaps(right_arm, err)) {
+            return null;
+        }
 
-    let Ap: Vec2 = w.left_arm.closestPoint(A);
+        // Check if they are parallel
+        // Such value of deviation ensure that angle in between the Lines regardless
+        // their lengths is 0.1 radians
+        const deviationFromZeroAngle = 0.1 / (left_arm.length * right_arm.length);
+        if(left_arm.parallel(right_arm, deviationFromZeroAngle)) {
+            // Check if they point in the same direction
+            // middle is non-null due to the overlap check
+            const middle = new Line(left_arm.evaluate(0.5), right_arm.evaluate(0.5));
+            const p = middle.evaluate(0.5);
+            // Now p lies in between the arms
+            // If arms point in the same direction p must be on the right of one and the left of another
+            // --------*------------>
+            //          \
+            //           \
+            //            * p
+            //             \
+            //       -------*----------->
+            const sideLeft = left_arm.pointOnSide(p, err);
+            const sideRight = right_arm.pointOnSide(p, err);
+            if(sideLeft === Side.Top || sideRight === Side.Top) { throw new Error(); }
 
-    // segment A-Ap is normal to both arms => I=(A+Ap)/2 is within arms of the wedge
-    // and |A-Ap| is the radius of a circle to inscribe
-    let I: Vec2 = A.plus(Ap).over(2),
-        r: number = A.minus(Ap).norm/2;
-    // now l = w.right_arm.delta*t + I passes between the arms
+            return sideLeft !== sideRight
+                ? new Wedge(left_arm, right_arm, true)
+                : new Wedge(left_arm, new Line(right_arm.end, right_arm.start));
+        }
 
-    let t1: number = ( AB.delta.cross( A.minus(I) ) + r*AB.delta.norm )/ AB.delta.cross( w.right_arm.delta ),
-        t2: number = ( AB.delta.cross( A.minus(I) ) - r*AB.delta.norm )/ AB.delta.cross( w.right_arm.delta );
+        // extensions of the wedge intersect, extend or cut the sides appropriately
+        // err is set to 0 because we have already established that they intersect under appropriate angle
+        const
+            tLA = left_arm.intersectionParameter(right_arm, 0) !,
+            tRA = right_arm.intersectionParameter(left_arm, 0) !;
 
-    let o1: Vec2 = w.right_arm.delta.times(t1).plus(I),
-        o2: Vec2 = w.right_arm.delta.times(t2).plus(I);
+        // If it's impossible to tell the excess that need to be cut
+        if(tLA === 0.5 || tRA === 0.5) { return null; }
 
-    return [ {
-            circle: {
-                centre: o1,
-                r: r
-            },
+        // W will be the angle point of the wedge
+        const W = left_arm.evaluate(tLA);
+
+        // Arrange the arms in a way that they point away from W.
+        // Make sure that after the cut, W and corresponding points are at least err distance apart
+        const eLA = tLA < 1 - tLA
+            ? left_arm.end
+            : left_arm.start;
+
+        const eRA = tRA < 1 - tRA
+            ? right_arm.end
+            : right_arm.start;
+
+        return new Wedge(new Line(W, eLA), new Line(W, eRA));
+    }
+
+    formTriangle(line: Line, err: number): boolean {
+        const thin =
+            this.left_arm.parallel(line, 0.1 / (this.left_arm.length * line.length)) ||
+            this.right_arm.parallel(line, 0.1 / (this.right_arm.length * line.length));
+        if(thin) {
+            return false;
+        }
+
+        const A = line.intersectionPoint(this.left_arm, 0) !,
+            B = line.intersectionPoint(this.right_arm, 0) !;
+
+        if(this.isDegenerate) {
+            return !A.equals(B, err);
+        }
+
+        const C = this.left_arm.intersectionPoint(this.right_arm, 0) !;
+
+        return !C.equals(A, err)
+            && !C.equals(B, err)
+            && !A.equals(B, err)
+            && !new Line(A, B).pointOnTop(C, err);
+    }
+
+    looselyContains(p: Vec2, err: number): boolean {
+        const pLeft = this.left_arm.pointOnSide(p, err),
+            pRight = this.right_arm.pointOnSide(p, err);
+
+        if(pLeft === Side.Top || pRight === Side.Top) {
+            return true;
+        }
+
+        // Point is on neither arms; To be within the wedge it:
+        // 1. must lie on different sides w.r.t. the arms
+        if(pLeft === pRight) {
+            return false;
+        }
+
+        return this.isDegenerate
+            // degenerate + different sides => true
+            ? true
+            // 2. (Because the arms intersect)
+            // Projection params of the point onto the arms must be larger than 0
+            : this.left_arm.closestPointParam(p) >= 0 && this.right_arm.closestPointParam(p) >= 0;
+    }
+
+    strictlyContains(p: Vec2, err: number): boolean {
+        const pLeft = this.left_arm.pointOnSide(p, err),
+            pRight = this.right_arm.pointOnSide(p, err);
+
+        if(pLeft === Side.Top || pRight === Side.Top) {
+            return false;
+        }
+
+        // Point is on neither arms; To be within the wedge it:
+        // 1. must lie on different sides w.r.t. the arms
+        if(pLeft === pRight) {
+            return false;
+        }
+
+        return this.isDegenerate
+            // degenerate + different sides => true
+            ? true
+            // 2. (Because the arms intersect)
+            // Projection params of the point onto the arms must be larger than 0
+            : this.left_arm.closestPointParam(p) >= 0 && this.right_arm.closestPointParam(p) >= 0;
+    }
+
+    // While fitting circles into a wedge
+    // There are four distinct cases:
+    // 1. Wedge is degenerate and additional element is a point
+    // 2. Wedge is degenerate and additional element is a line
+    // 3. Wedge is non-degenerate and additional element is a point
+    // 4. Wedge is non-degenerate and additional element is a line
+    // according to these assumptions, the following methods are named
+
+    private fit_Dp(p: Vec2, err: number): { circle: Circle, tangent: Line }[] | null {
+        if(!this.strictlyContains(p, err)) {
+            // point is not within the wedge
+            return null;
+        }
+        // Intersection are ensured by the previous check
+        // => A and B are non-null-s
+        //  -----------------------*(Ap)---------------(left)------->
+        //                         |
+        //                         |
+        //                         |
+        //   ----------------------*(I)-------------------
+        //                         |
+        //                         *(p)
+        //                         |
+        //  -----------------------*(A)----(right)----------->
+
+        const A = this.right_arm.closestPoint(p),
+            Ap = this.left_arm.closestPoint(A);
+
+        // Line A-Ap is normal to both arms => I = (A+Ap)/2 is within arms of the wedge
+        // and ||A-Ap|| is the radius of a circle to inscribe
+        const I = A.plus(Ap).over(2),
+            r: number = A.minus(Ap).norm / 2;
+        // Now l = this.right_arm.delta*t + I = D_ra*t + I passes between the arms
+        // We need to find Ic on l such that (Ic-p).(Ic-p) = r^2
+        // |Ic-p|^2-r^2 = |D_ra*t + I - p|^2-r^2 = (D_ra*t + I - p).(D_ra*t + I - p)-r^2 =
+        // |D_ra|^2 t^2 + 2*(I-P).D_ra*t + |I-p|^2 - r^2
+        const a = this.right_arm.delta.normSquared,
+            b = I.minus(p).dot(this.right_arm.delta) * 2,
+            c = I.minus(p).normSquared - r * r,
+            discriminant = b * b - 4 * a * c;
+
+        if(discriminant < (-10) ** -5) {
+            // Account for possible computation errors
+            // This should not happen if point is strictly contained within the wedge with a reasonable err
+            return null;
+        }
+
+        let t: number[] = [];
+
+        if(Math.abs(discriminant) < 10 ** -5) {
+            t.push(-b / (2 * a));
+        } else {
+            t.push((-b + Math.sqrt(discriminant)) / (2 * a));
+            t.push((-b - Math.sqrt(discriminant)) / (2 * a));
+        }
+
+        let result: { circle: Circle, tangent: Line }[] = [];
+
+        t.forEach((t0: number) => {
+            let O = this.right_arm.delta.times(t0).plus(I);
+            result.push({
+                circle: { centre: O, r: r },
+                tangent: new Line(p, p.plus(O.minus(p).normal()))
+            });
+        });
+
+        return result;
+    }
+
+    private fit_Dl(l: Line, err: number): { circle: Circle, tangentParameter: number }[] | null {
+        if(!this.formTriangle(l, err)) {
+            // edge is parallel to the arms
+            return null;
+        }
+
+        // Intersection are ensured by the previous check
+        // => A and B are non-null-s
+        //  ------(B)*-----*(Ap)---------------(left)------->
+        //            \    |
+        //             \   |
+        //   -----------\--*(I)-------------------
+        //               \ |
+        //                \|
+        //  ---------------*(A)-------------(right)----------->
+        const A = l.intersectionPoint(this.right_arm, 0) !,
+            B = l.intersectionPoint(this.left_arm, 0) !;
+
+        const AB = new Line(A, B) !;
+        const Ap = this.left_arm.closestPoint(A);
+
+        // Line A-Ap is normal to both arms => I = (A+Ap)/2 is within arms of the wedge
+        // and ||A-Ap|| is the radius of a circle to inscribe
+        const I = A.plus(Ap).over(2),
+            r = A.minus(Ap).norm / 2;
+        // Now this.right_arm.delta*t + I passes between the arms and parallel to them
+
+        const t1 = (AB.delta.cross(A.minus(I)) + r * AB.delta.norm) / AB.delta.cross(this.right_arm.delta),
+            t2 = (AB.delta.cross(A.minus(I)) - r * AB.delta.norm) / AB.delta.cross(this.right_arm.delta);
+
+        const o1: Vec2 = this.right_arm.delta.times(t1).plus(I),
+            o2: Vec2 = this.right_arm.delta.times(t2).plus(I);
+
+        return [{
+            circle: { centre: o1, r: r },
             tangentParameter: l.closestPointParam(o1)
         }, {
-            circle: {
-                centre: o2,
-                r: r
-            },
+            circle: { centre: o2, r: r },
             tangentParameter: l.closestPointParam(o2)
-        } ];
-}
-
-export function DegenWedgePoint(w: Wedge, p: Vec2): {circle: Circle, tangentLine: Line}[] {
-    if ( !pointWithinWedge(w, p) ) {
-        // point is not within the wedge
-        return null;
+        }];
     }
 
-    // arms are paralle, find a point in betwween arms which is equidistant from them
-    let A: Vec2 = w.right_arm.closestPoint(p),
-        Ap: Vec2 = w.left_arm.closestPoint(A);
-
-    // segment A-Ap is normal to both arms => I=(A+Ap)/2 is within arms of the wedge
-    // and |A-Ap| is the radius of a circle to inscribe
-    let I: Vec2 = A.plus(Ap).over(2),
-        r: number = A.minus(Ap).norm/2;
-    // now l = w.right_arm.delta*t + I = D_ra*t + I passes between the arms
-    // we need to find Ic on l such that (Ic-p).(Ic-p) = r^2
-    // |Ic-p|^2-r^2 = |D_ra*t + I - p|^2-r^2 = (D_ra*t + I - p).(D_ra*t + I - p)-r^2 =
-    // |D_ra|^2 t^2 + 2*(I-P).D_ra*t + |I-p|^2 - r^2
-    let a = w.right_arm.delta.normSquared,
-        b = I.minus(p).dot(w.right_arm.delta)*2,
-        c = I.minus(p).normSquared - r*r,
-        discriminant = b*b - 4*a*c;
-
-    if ( discriminant<(-10)**-5 ) {
-        return null;
-    }
-
-    let t: number[] = [];
-
-    if ( Math.abs(discriminant)<10**-5 ) {
-        t.push( -b/(2*a) );
-    } else {
-        t.push( (-b + Math.sqrt(discriminant))/(2*a) );
-        t.push( (-b - Math.sqrt(discriminant))/(2*a) );
-    }
-
-    let result: {circle: Circle, tangentLine: Line}[] = [];
-
-    t.forEach( (t0: number)=> {
-        let O: Vec2 = w.right_arm.delta.times(t0).plus(I);
-        result.push( {
-            circle: {
-                centre:  O,
-                r: r
-            },
-            tangentLine: new Line(p, p.plus( O.minus(p).normal() ))
-        } );
-    });
-
-    return result;
-}
-
-export function WedgeLine(w: Wedge, l: Line): {circle: Circle, tangentParameter: number} {
-    if ( !formTriangle(w, l) ) {
-        // edge is parallel to one of the arms
-        return null;
-    }
-
-    // form a triangle such that:
-    // vertex C is the wedge corner point
-    let C: Vec2 = w.left_arm.intersectionPoint(w.right_arm);
-    // vertex A is the line-left-arm intersection
-    let A: Vec2 = l.intersectionPoint(w.left_arm);
-    // vertex B is the line-right-arm intersection
-    let B: Vec2 = l.intersectionPoint(w.right_arm);
-
-    // sides of the triangle
-    let AC: Line = new Line(A, C),
-        BC: Line = new Line(B, C),
-        AB: Line = new Line(A, B);
-
-    // lengths of sides
-    let a: number = AC.length,
-        b: number = BC.length,
-        c: number = AB.length;
-    // half perimeter
-    let s: number = (a + b + c)/2;
-
-    if ( s*(s-a)*(s-b)/(s-c)<0 ) {
-        // case of a very thin triangle
-        return null;
-    }
-    // we need to find excribed circle touching AB
-    // radius of such circle
-    let r: number = Math.sqrt(s*(s-a)*(s-b)/(s-c));
-
-    let det: number = AB.delta.cross(AC.delta);
-
-    let lhs_all: Vec2[] = [
-        new Vec2( B.cross(A) + r*c, C.cross(A) + r*a),
-        new Vec2( B.cross(A) + r*c, C.cross(A) - r*a),
-        new Vec2( B.cross(A) - r*c, C.cross(A) + r*a),
-        new Vec2( B.cross(A) - r*c, C.cross(A) - r*a)
-    ];
-    // possible centres
-    let O_all: Vec2[] = [];
-    lhs_all.forEach((lhs: Vec2)=> {
-        O_all.push(
-            new Vec2(
-                new Vec2(AB.delta.x, AC.delta.x).cross( lhs ),
-                new Vec2(AB.delta.y, AC.delta.y).cross( lhs )
-            ).over( -det )
-        );
-    });
-
-    //choose the one touching the third side
-    let o: Vec2;
-    let dists: {raw: number, norm: number}[] = [];
-    O_all.forEach((O: Vec2)=> {
-        dists.push( {raw: Math.abs(BC.distanceToPoint(O) - r), norm: Math.abs(BC.distanceToPoint(O)/r-1)} );
-        // absolute error --- is the distance between circle and a line, this is the ultimate measure of closeness
-        let absolute_error: number = Math.abs(BC.distanceToPoint(O) - r);
-        // relative error --- is the distance between circle and a line normalized to the radius
-        // this measure is usefull when circle has a very large radius and absolute error might grow
-        let relative_error: number = Math.abs(BC.distanceToPoint(O)/r - 1);
-        if ( ( absolute_error < 10**(-5) || relative_error<10**(-5) ) &&
-               AC.pointOnSide(O) !== BC.pointOnSide(O) ) {
-            o = O;
+    private fit_NDp(p: Vec2, err: number): { circle: Circle, tangent: Line }[] | null {
+        if(!this.strictlyContains(p, err)) {
+            return null;
         }
-    });
+        // Point is in-between the wedge's arms
 
-    if ( o === undefined ) {
-        console.log("WedgeLine, centre is undefined");
-        for (let i: number = 0; i<O_all.length; i++) {
-            console.log(`centre: (${O_all[i].x}, ${O_all[i].y}), r: ${r}, dist raw: ${dists[i].raw},  dist norm: ${dists[i].norm}`);
-        }
-        console.log('\n');
-    }
+        //              *(C)
+        //             /|
+        //            / |
+        //           /  |
+        //          /   |
+        //         /    |
+        //        / *(p)|
+        //       /      |
+        //   (A)*       *(B)
 
-    return { circle: {
-                centre: o,
-                r: r
-            },
-            tangentParameter: l.closestPointParam(o)
-        };
-}
 
-export function WedgePoint(w: Wedge, p: Vec2, points: Vec2[]): {circle: Circle, tangentLine: Line} {
-    let C: Vec2 = w.left_arm.intersectionPoint(w.right_arm);
-    let dLeft: Vec2 = w.left_arm.delta,
-        dRight: Vec2 = w.right_arm.delta;
+        // By construction of wedge
+        const
+            C = this.left_arm.start, // or = this.right_arm.end
+            A = this.left_arm.end,
+            B = this.right_arm.end;
 
-    let ABs: {A: Vec2, B: Vec2}[] = [
-        { A: C.plus(dLeft), B: C.plus(dRight) },
-        { A: C.plus(dLeft), B: C.minus(dRight) },
-        { A: C.minus(dLeft), B: C.plus(dRight) },
-        { A: C.minus(dLeft), B: C.minus(dRight) }
-    ];
+        const
+            a: number = C.minus(B).norm,
+            b: number = C.minus(A).norm;
 
-    let A: Vec2,
-        B: Vec2;
+        const D = A.minus(B).times(a / (a + b)).plus(B);
 
-    for (let AB of ABs) {
-        let arm1: Line = new Line(AB.A, C),
-            arm2: Line = new Line(C, AB.B);
-        if ( arm1.pointOnSide(p) === -1 && arm2.pointOnSide(p) === -1 ) {
-            // point is to the left of the sides forming the wedge, it means we are in the right quadrant
-            ( {A: A, B: B} = AB );
-        }
-    }
+        const bisector = new Line(C, D);
 
-    if (typeof A === 'undefined' || typeof B === 'undefined') {
-        // point lies on the edge of some quadrant, we need to analyse other points
-        let quadrants: number[] = [0, 0, 0, 0];
+        const // coefficients for quadratic equations
+            e_a = D.minus(C).normSquared - (A.minus(C).cross(D.minus(C)) / b) ** 2,
+            e_b = D.minus(C).dot(C.minus(p)) * 2,
+            e_c = C.minus(p).normSquared,
+            discriminant = e_b * e_b - 4 * e_a * e_c;
 
-        for (let ab: number = 0; ab < 4; ab++ ) {
-            for (let i: number = 0; i<points.length; i++) {
-                let arm1: Line = new Line(ABs[ab].A, C),
-                    arm2: Line = new Line(C, ABs[ab].B);
-                let p0: Vec2 = points[i];
-                let inside: number = (arm1.pointOnSide(p0, 10**-5) === -1 && arm2.pointOnSide(p0, 10**-5) === -1)
-                                     ? 1 : 0;
-                quadrants[ab] += inside;
-            }
+        if(discriminant < (-10) ** -5) {
+            // Account for possible computation errors
+            // This should not happen if point is strictly contained within the wedge with a reasonable err
+            return null;
         }
 
-        // pick a quadrant containing the most points
-        let i_max: number = 0,
-            q_max: number = quadrants[i_max];
-        for (let ab: number = 0; ab<4; ab++) {
-            if (quadrants[ab]>q_max) {
-                q_max = quadrants[ab];
-                i_max = ab;
-            }
-        }
+        let O: Vec2, r: number;
 
-        ( {A: A, B: B} = ABs[i_max] );
-    }
-
-    if (typeof A === 'undefined' || typeof B === 'undefined') {
-        return null;
-    }
-
-    let a: number = C.minus(B).norm,
-        b: number = C.minus(A).norm,
-        c: number = A.minus(B).norm;
-
-    let D: Vec2 = A.minus(B).times( a/(a+b) ).plus(B);
-
-    let bisector: Line = new Line(C, D);
-
-    let // coefficients for quadratic equations
-        e_a = D.minus(C).norm**2 - (A.minus(C).cross( D.minus(C) )/b)**2,
-        e_b = D.minus(C).dot( C.minus(p) )*2,
-        e_c = C.minus(p).norm**2,
-        discriminant = e_b*e_b - 4*e_a*e_c;
-
-    if (discriminant<(-10)**-5) {
-        return null;
-    }
-
-    let O: Vec2,
-        r: number;
-
-    if ( Math.abs(discriminant)<10**-5 ) {
-        let t: number = -e_b/(2*e_a);
-        O = bisector.evaluate(t);
-        r = O.minus(p).norm;
-    } else {
-        let t1: number = (-e_b + Math.sqrt(discriminant))/(2*e_a),
-            t2: number = (-e_b - Math.sqrt(discriminant))/(2*e_a);
-        // pick the value corresponding to larger radius
-        if ( bisector.evaluate(t1).minus(p).normSquared > bisector.evaluate(t2).minus(p).normSquared ) {
-            O = bisector.evaluate(t1);
-            r = bisector.evaluate(t1).minus(p).norm;
+        if(Math.abs(discriminant) < 10 ** -5) {
+            const t = -e_b / (2 * e_a);
+            O = bisector.evaluate(t);
+            r = O.minus(p).norm;
         } else {
-            O = bisector.evaluate(t2);
-            r = bisector.evaluate(t2).minus(p).norm;
+            const t1 = (-e_b + Math.sqrt(discriminant)) / (2 * e_a),
+                t2 = (-e_b - Math.sqrt(discriminant)) / (2 * e_a);
+            // Pick the value corresponding to larger radius
+            if(bisector.evaluate(t1).minus(p).normSquared > bisector.evaluate(t2).minus(p).normSquared) {
+                O = bisector.evaluate(t1);
+                r = bisector.evaluate(t1).minus(p).norm;
+            } else {
+                O = bisector.evaluate(t2);
+                r = bisector.evaluate(t2).minus(p).norm;
+            }
         }
+
+        return [{
+            circle: { centre: O, r: r },
+            tangent: new Line(p, p.plus(O.minus(p).normal()))
+        }];
     }
 
-    return {
-        circle: {
-            centre: O,
-            r: r
-        },
-        tangentLine: new Line( p, p.plus( O.minus(p).normal() ) )
-    };
+    private fit_NDl(l: Line, err: number): { circle: Circle, tangentParameter: number }[] | null {
+        if(!this.formTriangle(l, err)) {
+            // Edge is parallel to one of the arms
+            return null;
+        }
+
+        // Intersections are ensured by the previous check;
+        // => A, B, and C are non-null-s
+        // Form a triangle such that:
+        // 1. vertex C is the wedge corner point
+        const C = this.left_arm.start;
+
+        // 2. vertex A is the line-left-arm intersection
+        const A = l.intersectionPoint(this.left_arm, 0) !;
+
+        // 3. vertex B is the line-right-arm intersection
+        const B = l.intersectionPoint(this.right_arm, 0) !;
+
+        // => sides of the triangle are
+        const
+            AC = new Line(A, C),
+            BC = new Line(B, C),
+            AB = new Line(A, B);
+
+        // lengths of sides
+        const
+            a = AC.length,
+            b = BC.length,
+            c = AB.length;
+        // half perimeter
+        const s = (a + b + c) / 2;
+
+        if(s * (s - a) * (s - b) / (s - c) < 0) {
+            // Case of a very thin triangle
+            // Should not happen with a reasonable err
+            return null;
+        }
+
+        // We need to find an escribed circle touching AB
+        // Radius of such circle
+        const r = Math.sqrt(s * (s - a) * (s - b) / (s - c));
+
+        const det: number = AB.delta.cross(AC.delta);
+
+        const lhs_all: Vec2[] = [
+            new Vec2(B.cross(A) + r * c, C.cross(A) + r * a),
+            new Vec2(B.cross(A) + r * c, C.cross(A) - r * a),
+            new Vec2(B.cross(A) - r * c, C.cross(A) + r * a),
+            new Vec2(B.cross(A) - r * c, C.cross(A) - r * a)
+        ];
+
+        // Possible centres
+        let O_all: Vec2[] = [];
+        lhs_all.forEach((lhs: Vec2) => {
+            O_all.push(
+                new Vec2(
+                    new Vec2(AB.delta.x, AC.delta.x).cross(lhs),
+                    new Vec2(AB.delta.y, AC.delta.y).cross(lhs)
+                ).over(-det)
+            );
+        });
+
+        //choose the one touching the third side
+        let o: Vec2 | null = null;
+        let dists: { raw: number, norm: number }[] = [];
+        for(let O of O_all) {
+            dists.push({ raw: Math.abs(BC.distanceToPoint(O) - r), norm: Math.abs(BC.distanceToPoint(O) / r - 1) });
+            // absolute error --- is the distance between circle and a line, this is the ultimate measure of closeness
+            const absolute_error = Math.abs(BC.distanceToPoint(O) - r);
+            // relative error --- is the distance between circle and a line normalized to the radius
+            // this measure is usefull when circle has a very large radius and absolute error might grow
+            const relative_error = Math.abs(BC.distanceToPoint(O) / r - 1);
+            if((absolute_error < 10 ** (-5) || relative_error < 10 ** (-5)) &&
+                AC.pointOnSide(O) !== BC.pointOnSide(O)) {
+                o = O;
+                break;
+            }
+        }
+
+        let msg = '';
+        if(o === null) {
+            msg = "fit_NDl, centre is undefined";
+            for(let i: number = 0; i < O_all.length; i++) {
+                msg += `centre: (${O_all[i].x}, ${O_all[i].y}), r: ${r}, dist raw: ${dists[i].raw},  dist norm: ${dists[i].norm}\n`;
+            }
+        }
+        if(o === null) { throw new Error(msg); }
+
+        return [{
+            circle: { centre: o!, r: r },
+            tangentParameter: l.closestPointParam(o!)
+        }];
+    }
+
+    fitCircles(element: Vec2, err: number): { circle: Circle, tangent: Line }[] | null;
+    fitCircles(element: Line | Line, err: number): { circle: Circle, tangentParameter: number }[] | null;
+    fitCircles(element: Vec2 | Line | Line, err: number): any {
+        if(element instanceof Vec2) {
+            return this.isDegenerate
+                ? this.fit_Dp(element, err)
+                : this.fit_NDp(element, err);
+        }
+        if(element instanceof Line || element instanceof Line) {
+            return this.isDegenerate
+                ? this.fit_Dl(element instanceof Line ? element : element, err)
+                : this.fit_NDl(element instanceof Line ? element : element, err);
+        }
+        return null;
+    }
+
+    toString(): string {
+        return `LA: ${this.left_arm.start} --> ${this.left_arm.end}\n` +
+            `RA: ${this.right_arm.start} --> ${this.right_arm.end}`;
+    }
 }
