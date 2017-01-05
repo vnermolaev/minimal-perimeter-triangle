@@ -7,13 +7,19 @@ the former implementation fails whenever a polygon contains a vertical edge,
 this is robust w.r.t. the vertucal edges.
 
 ### Building
+Install required packages
 
-This produces directory `web`:
+    npm install
 
-	npm install
-	grunt
+Compile and run tests
 
-An example is contained in `web/demo/showcase.html`.
+    gulp
+
+Run demo
+
+	gulp demo
+
+Demo is contained in `web/demo/showcase.html`.
 Data for examples are taken from the minimum area enclosing triangle
 [repository](https://github.com/IceRage/minimal-area-triangle/tree/master/data/random_convex_polygon_sample)
 

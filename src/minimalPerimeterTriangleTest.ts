@@ -25,7 +25,7 @@ test("compute minimal perimeter triangle condinitoned on the base", t => {
     const points = [
         new Vec2(-2, 0), new Vec2(-2, 1), new Vec2(-1, 2), new Vec2(0, 2.5),
         new Vec2(1, 2), new Vec2(2, 1), new Vec2(2, 0)];
-    const {A, B, C} = minTriangleWithBase(points, 10 ** -7)!;
+    const {A, B, C} = minTriangleWithBase(points, 10 ** -5, 0.1)!;
 
     t.true(Math.abs(0 - A.x) < 0.2);
     t.true(Math.abs(3 - A.y) < 0.2);

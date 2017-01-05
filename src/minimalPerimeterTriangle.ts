@@ -161,7 +161,7 @@ function findAntipode(points: Vec2[]) {
  * @param {Vec2[]} points convex hull representing an arc trace
  * @returns {({ A: Vec2, B: Vec2, C: Vec2 } | null)} triangle or null if failed
  */
-export function minTriangleWithBase(convexHull: Vec2[], err: number): { A: Vec2, B: Vec2, C: Vec2 } | null {
+export function minTriangleWithBase(convexHull: Vec2[], err: number, tol: number): { A: Vec2, B: Vec2, C: Vec2 } | null {
     // Sides of the triangle
     let AB: Line, AC: Line;
 
@@ -200,7 +200,7 @@ export function minTriangleWithBase(convexHull: Vec2[], err: number): { A: Vec2,
         wedge = Inscribe.Wedge.new(wedge.left_arm, AB, err) !;
 
         // By design |AB| >= |AC| (see ref.), stop when they are close
-    } while(AB.length - AC.length > 0.1);
+    } while(AB.length - AC.length > tol);
 
     const
         A = AC.intersectionPoint(AB, 0) !,
@@ -210,7 +210,7 @@ export function minTriangleWithBase(convexHull: Vec2[], err: number): { A: Vec2,
     return { A: A, B: B, C: C };
 }
 
-export function minTriangle(convexHull: { x: number, y: number }[], err: number):
+export function minTriangle(convexHull: { x: number, y: number }[], err: number, tol: number):
     { A: { x: number, y: number }, B: { x: number, y: number }, C: { x: number, y: number } } | null {
     if(convexHull.length < 3) {
         return null;
@@ -236,7 +236,7 @@ export function minTriangle(convexHull: { x: number, y: number }[], err: number)
         }
 
         // re-calculate the triangle
-        const triangle = minTriangleWithBase(points, err);
+        const triangle = minTriangleWithBase(points, err, tol);
 
         //assert triangle is found
         if(triangle !== null) {

@@ -13,7 +13,7 @@ export function main(): void {
     for (let testcase of testcases) {
         let log = `${testcase.name}`;
         const start = new Date();
-        minABC(testcase.data, 10**-2);
+        minABC(testcase.data, 10**-5, 0.1);
         const end = new Date();
         log += ` => ${end.getTime() - start.getTime()} <=`;
         console.log(log);
