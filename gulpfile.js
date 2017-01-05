@@ -167,94 +167,21 @@ for (let appTs of appFiles) {
     ));
 }
 
-// Generate tasks for each demo app. Note that this happens on start of gulp.
-// If app files are created afterwards gulp needs to restart
-var browserifyAllTestFoldersTasks = [];
-var testFiles = glob.sync('src/**/*Test/assets/*.ts').map((fname) => { return path.normalize(fname); });
-
-var testFlds = {};
-for (let testTs of testFiles) {
-    var fileFld = path.dirname(testTs);
-    var testFld = path.normalize(fileFld.substr(0, fileFld.length - '/assets'.length));
-    if (testFlds.hasOwnProperty(testFld)) {
-        testFlds[testFld].push(testTs);
-    } else {
-        testFlds[testFld] = [testTs];
-    }
-}
-
-for (let testFld in testFlds) {
-    if (testFlds.hasOwnProperty(testFld)) {
-        var browserifyTestFolderTasks = [];
-        for (let testTs of testFlds[testFld]) {
-            let transpiled = path.join('build', path.dirname(testTs).substr('src'.length), path.basename(testTs, '.ts') + '.js');
-            let targetDir = path.join('build', path.dirname(testTs).substr('src'.length));
-            let taskFileName = 'browserify ' + transpiled;
-            browserifyTestFolderTasks.push(taskFileName);
-            gulp.task(taskFileName, browserifyTask(transpiled, targetDir));
-        }
-        let folderTaskName = 'browserify ' + testFld;
-        browserifyAllTestFoldersTasks.push(folderTaskName);
-        gulp.task(folderTaskName, gulp.parallel(browserifyTestFolderTasks));
-        gulp.task(testFld, gulp.series([gulp.parallel('linkTestAssets', 'ts', 'tslint-nothrow'), folderTaskName, 'ava']));
-        gulp.task(testFld + '-watch', gulp.parallel(
-            gulp.series(
-                testFld,
-                () => {
-                    gulp.watch(copyTestAssests, gulp.parallel(gulp.series(['ts', testFld]), 'tslint-nothrow'));
-                    gulp.watch('src/**/*.ts', gulp.parallel(gulp.series(['ts', testFld]), 'tslint-nothrow'));
-                })
-        ));
-    }
-}
-
 
 gulp.task('browserifyApps', gulp.parallel(browserifyAppTasks));
-gulp.task('browserifyTests', gulp.parallel(browserifyAllTestFoldersTasks));
-
 gulp.task('demo', gulp.parallel('linkDemoAssets', gulp.series(['ts', 'browserifyApps', 'serve'])));
 
-gulp.task('test', gulp.series(['linkTestAssets', 'ts', 'browserifyTests', 'ava']));
+
+gulp.task('test', gulp.series(['linkTestAssets', 'ts', 'ava']));
 gulp.task('test-watch', gulp.series(gulp.parallel(['tslint-nothrow', 'test']), () => {
     return gulp.watch('src/**/*.ts', gulp.parallel(['test', 'tslint-nothrow']));
 }));
 
 gulp.task('all', gulp.series(
     'clean',
-    gulp.parallel(['tslint', 'linkDemoAssets', 'linkTestAssets']),
+    'tslint',
     'ts',
-    gulp.parallel(['browserifyApps', 'browserifyTests']),
     'ava'
 ));
 
-var gulpStartedFromProjectRoot = process.env['PWD'] === undefined || process.env['PWD'] === process.cwd();
-if (gulpStartedFromProjectRoot) {
-    gulp.task('default', gulp.series('all'));
-} else {
-    var appFiles = glob.sync('app*.ts', { cwd: process.env['PWD'] });
-    //Assume demo context
-    if (appFiles.length > 0) {
-        let browserifyTasks = appFiles.map((tspath) => path.relative(process.cwd(), path.resolve(process.env['PWD'], tspath)));
-
-        gulp.task('default',
-            gulp.series((done) => {
-                    gutil.log('Found app*.ts files in the current directory, assuming demo development context');
-                    done();
-                },
-                'linkDemoAssets',
-                gulp.parallel('tslint-nothrow', 'ts'),
-                browserifyAppTasks,
-                gulp.parallel(
-                    'serve', () => {
-                        gulp.watch(copyWebSrc, gulp.series('reload'));
-                        gulp.watch('src/**/*.ts', gulp.parallel('tslint-nothrow', gulp.series(['ts'], browserifyTasks)));
-                    })));
-    } else {
-        gulp.task('default',
-            gulp.series((done) => {
-                    gutil.log('Did not find app*.ts files in the current directory, assuming automatic testing context');
-                    done();
-                },
-                'test-watch'));
-    }
-}
+gulp.task('default', gulp.series('all'));

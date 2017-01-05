@@ -10,14 +10,13 @@ this is robust w.r.t. the vertucal edges.
 Install required packages
 
     npm install
-
-Compile and run tests
-
     gulp
 
-Run demo
+### Run demo
 
 	gulp demo
+
+**Note**: running demo will require *administrator privileges* to create symlinks from web directory to an html page in source
 
 Demo is contained in `web/demo/showcase.html`.
 Data for examples are taken from the minimum area enclosing triangle
