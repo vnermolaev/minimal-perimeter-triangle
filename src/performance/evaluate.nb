@@ -10,14 +10,46 @@
 NotebookFileLineBreakTest
 NotebookFileLineBreakTest
 NotebookDataPosition[       158,          7]
-NotebookDataLength[     38753,        739]
-NotebookOptionsPosition[     38386,        722]
-NotebookOutlinePosition[     38737,        737]
-CellTagsIndexPosition[     38694,        734]
+NotebookDataLength[     40070,        780]
+NotebookOptionsPosition[     39624,        761]
+NotebookOutlinePosition[     39975,        776]
+CellTagsIndexPosition[     39932,        773]
 WindowFrame->Normal*)
 
 (* Beginning of Notebook Content *)
 Notebook[{
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   RowBox[{"discreteColors", "[", "n_", "]"}], ":=", 
+   RowBox[{"With", "[", 
+    RowBox[{
+     RowBox[{"{", 
+      RowBox[{"partL", "=", 
+       RowBox[{"Ceiling", "[", 
+        SqrtBox["n"], "]"}]}], "}"}], ",", 
+     RowBox[{"DeleteCases", "[", 
+      RowBox[{
+       RowBox[{"Flatten", "[", 
+        RowBox[{"Transpose", "[", 
+         RowBox[{"Partition", "[", 
+          RowBox[{
+           RowBox[{"Table", "[", 
+            RowBox[{
+             RowBox[{"Lighter", "[", 
+              RowBox[{
+               RowBox[{"Darker", "[", 
+                RowBox[{
+                 RowBox[{"Hue", "[", "c", "]"}], ",", "0.1`"}], "]"}], ",", 
+               "0.25`"}], "]"}], ",", 
+             RowBox[{"{", 
+              RowBox[{"c", ",", "0", ",", 
+               RowBox[{"1", "-", 
+                FractionBox["1", "n"]}], ",", 
+               FractionBox["1", "n"]}], "}"}]}], "]"}], ",", "partL", ",", 
+           "partL", ",", "1", ",", "0"}], "]"}], "]"}], "]"}], ",", "0"}], 
+      "]"}]}], "]"}]}], ";"}]], "Input"],
+
 Cell[BoxData[{
  RowBox[{
   RowBox[{"Nruns", "=", "20"}], ";"}], "\[IndentingNewLine]", 
@@ -718,7 +750,14 @@ waWVF7so/AeAPE+f
    3.6927041008185544`*^9}, 3.692705916848425*^9, 3.6927059484082303`*^9, 
    3.692706079861749*^9, {3.692706128553534*^9, 3.692706140036191*^9}, {
    3.69270617970446*^9, 3.6927064716901608`*^9}}]
-}, Open  ]]
+}, Open  ]],
+
+Cell[BoxData[
+ RowBox[{"Export", "[", 
+  RowBox[{
+   RowBox[{
+    RowBox[{"NotebookDirectory", "[", "]"}], "<>", "\"\<fit.pdf\>\""}], ",", 
+   "result"}], "]"}]], "Input"]
 },
 WindowSize->{2560, 1398},
 WindowMargins->{{1912, Automatic}, {-48, Automatic}},
@@ -736,11 +775,13 @@ CellTagsIndex->{}
 *)
 (*NotebookFileOutline
 Notebook[{
-Cell[558, 20, 2505, 63, 312, "Input"],
+Cell[558, 20, 1061, 30, 46, "Input"],
+Cell[1622, 52, 2505, 63, 312, "Input"],
 Cell[CellGroupData[{
-Cell[3088, 87, 2969, 76, 252, "Input"],
-Cell[6060, 165, 32310, 554, 1040, "Output"]
-}, Open  ]]
+Cell[4152, 119, 2969, 76, 252, "Input"],
+Cell[7124, 197, 32310, 554, 1040, "Output"]
+}, Open  ]],
+Cell[39449, 754, 171, 5, 31, "Input"]
 }
 ]
 *)
