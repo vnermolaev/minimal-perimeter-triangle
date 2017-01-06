@@ -22,9 +22,9 @@ Data for examples are taken from the minimum area enclosing triangle
 [repository](https://github.com/IceRage/minimal-area-triangle/tree/master/data/random_convex_polygon_sample)
 
 ### Evaluate performance (Windows)
-After having build, start PowerShell and execute 'build\performance\measurements.ps1'
+After having build, start PowerShell and execute `build\performance\measurements.ps1`
 You may want to adjust the parameters of the evaluation in the script
-Script will generate a number of logs which can be analysed in Mathematica notebook 'build\performance\evaluate.nb'
+Script will generate a number of logs which can be analysed in Mathematica notebook `build\performance\evaluate.nb`
 
 ### License
 
