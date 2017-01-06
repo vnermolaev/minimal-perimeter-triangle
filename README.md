@@ -7,7 +7,6 @@ the former implementation fails whenever a polygon contains a vertical edge,
 this is robust w.r.t. the vertucal edges.
 
 ### Building
-Install required packages
 
     npm install
     gulp
@@ -21,6 +20,11 @@ Install required packages
 Demo is contained in `web/demo/showcase.html`.
 Data for examples are taken from the minimum area enclosing triangle
 [repository](https://github.com/IceRage/minimal-area-triangle/tree/master/data/random_convex_polygon_sample)
+
+### Evaluate performance (Windows)
+After having build, start PowerShell and execute 'build\performance\measurements.ps1'
+You may want to adjust the parameters of the evaluation in the script
+Script will generate a number of logs which can be analysed in Mathematica notebook 'build\performance\evaluate.nb'
 
 ### License
 

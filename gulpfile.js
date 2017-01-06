@@ -90,18 +90,17 @@ gulp.task('ava', function() {
         .pipe(ava());
 });
 
-var copyWebSrc = ['**/*.html', '**/*.png', '**/*.jpg', '**/*.jpeg', '**/*.gif', '**/*.ico', '**/*.css', '**/*.js'].map((x) => 'src/**/demo/**/' + x);
+var copyWebSrc = ['*.html', '*.png', '*.jpg', '*.jpeg', '*.gif', '*.ico', '*.css', '*.js'].map((x) => 'src/**/demo/**/' + x);
 gulp.task('linkDemoAssets', function() {
     return gulp.src(copyWebSrc)
         .pipe(gulp.symlink('web'))
         .pipe(gulpConnect.reload());
 });
 
-var copyTestAssests = ['**/*Test/**/assets/*.html', '**/*Test/assets/*.css', '**/*Test/assets/*.png'].map((x) => 'src/' + x);
-gulp.task('linkTestAssets', function() {
-    return gulp.src(copyTestAssests)
-        .pipe(gulp.symlink('build'))
-        .pipe(gulpConnect.reload());
+var copyScripts = ['*.ps1', '*.nb'].map((x) => 'src/**/' + x);
+gulp.task('copyScripts', function() {
+    return gulp.src(copyScripts)
+        .pipe(gulp.dest('build'));
 });
 
 function browserifyTask(js, targetDir) {
@@ -172,7 +171,7 @@ gulp.task('browserifyApps', gulp.parallel(browserifyAppTasks));
 gulp.task('demo', gulp.parallel('linkDemoAssets', gulp.series(['ts', 'browserifyApps', 'serve'])));
 
 
-gulp.task('test', gulp.series(['linkTestAssets', 'ts', 'ava']));
+gulp.task('test', gulp.series(['ts', 'ava']));
 gulp.task('test-watch', gulp.series(gulp.parallel(['tslint-nothrow', 'test']), () => {
     return gulp.watch('src/**/*.ts', gulp.parallel(['test', 'tslint-nothrow']));
 }));
@@ -180,7 +179,7 @@ gulp.task('test-watch', gulp.series(gulp.parallel(['tslint-nothrow', 'test']), (
 gulp.task('all', gulp.series(
     'clean',
     'tslint',
-    'ts',
+    gulp.parallel(['ts', 'copyScripts']),
     'ava'
 ));
 
