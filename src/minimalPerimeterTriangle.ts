@@ -33,7 +33,7 @@ export function lineTangentToHull(line: Line, points: Vec2[], halo: number): { h
  */
 function findEnclosingSide(wedge: Inscribe.Wedge, startVertex: number, endVertex: number, points: Vec2[], halo: number):
     { side: Line, stopVertex: number } | null {
-    // Eclosing side
+    // Enclosing side
     let side: Line | null = null;
     let stopVertex = startVertex;
 
@@ -172,7 +172,7 @@ export function minTriangleWithBase(convexHull: Vec2[], err: number, tol: number
 
     // Find the antipodal point to the base, i.e. the farthest point
     let antipodIndex = findAntipode(convexHull);
-    let baseParallel = new Line(convexHull[antipodIndex], convexHull[antipodIndex].plus(BC.delta)) !;
+    let baseParallel = new Line(convexHull[antipodIndex], convexHull[antipodIndex].plus(BC.delta))!;
 
     // Bootstrap the algorithm with a degenerate wedge
     let wedge = Inscribe.Wedge.new(BC, baseParallel, err) !;
