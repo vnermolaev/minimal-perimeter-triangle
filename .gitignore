@@ -12,3 +12,4 @@ src/**/*.map
 test/
 web/
 dist/
+package-lock.json

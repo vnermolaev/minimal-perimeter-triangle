@@ -30,7 +30,7 @@ select.onchange = (ev: Event) => {
     let points: Vec2[] = [];
     let testcase = testcases.find(test => test.name === opt);
 
-    testcase.data.forEach(p => { points.push(p.over(2).plus(new Vec2(350, 200))); });
+    testcase!.data.forEach(p => { points.push(p.over(2).plus(new Vec2(350, 200))); });
 
     paper.clear();
     paper.points(points, 3, 'red');
